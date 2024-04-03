@@ -7,8 +7,8 @@ of the inverse mapping.
 import numpy as np
 import numpy.linalg as la
 
-from discretization.nodal import EquispacedNodalBasis
-from discretization.operators import ReferenceOperators
+from .nodal import EquispacedNodalBasis
+from .operators import ReferenceOperators
 
 
 def get_interpolatory_map(ref_nodes):

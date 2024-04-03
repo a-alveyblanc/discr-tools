@@ -1,33 +1,48 @@
 """
-This file contains routines to generate uniform rectangular meshes
+This file contains routines to generate uniform rectangular meshes. Depends on
+meshmode to construct the mesh and picks off the (minimum) necessary info.
 """
 
-import numpy as np
+from meshmode.mesh import TensorProductElementGroup
+from meshmode.mesh.generation import generate_regular_rect_mesh
 
 
 class Mesh:
-    def __init__(self, a, b, dim, nelts):
+    """
+    Used to generate and store a uniform quadrilateral mesh
+    """
+    def __init__(self, a, b, dim, nelts_1d):
         self.a = a
         self.b = b
         self.dim = dim
-        self.nelts = nelts
+        self.nelts_1d = nelts_1d
 
-    
-    def _mesh(self):
-        """
-        Generates a uniform rectangular mesh
-        """
+        self._mesh = generate_regular_rect_mesh(
+            (self.a,)*self.dim, (self.b,)*self.dim,
+            nelements_per_axis=(self.nelts_1d,)*self.dim, 
+            group_cls=TensorProductElementGroup
+        )
 
-        # generate the grid
-        omega_1d = np.linspace(-1, 1, num=self.nelts)
-        x, y = np.meshgrid(omega_1d, omega_1d, indexing="ij")
+        self._vertices = self.mesh.vertices
+        self._vertex_idxs = self.mesh.groups[0].vertex_indices
+        self._elements = self.vertices[:,self._vertex_idxs]
 
-        # number elements starting from bottom left, nodes ccw
 
     @property
     def mesh(self):
-        try:
-            return self.__mesh
-        except AttributeError:
-            self.__mesh = self._mesh()
-            return self.__mesh
+        return self._mesh
+
+
+    @property
+    def elements(self):
+        return self._elements
+
+    
+    @property
+    def vertices(self):
+        return self._vertices
+
+
+    @property
+    def vertex_indices(self):
+        return self._vertex_idxs
