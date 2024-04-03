@@ -33,12 +33,24 @@ def map_elements(ref_nodes, elements):
 
     interp_map = get_interpolatory_map(ref_nodes)
 
-    return np.einsum(
-        "xers,ri,sj->xeij",
-        elements.reshape(dim, nelts, *(dim,)*dim),
-        interp_map,
-        interp_map
-    ).reshape(dim, nelts, len(ref_nodes)**dim)
+    if dim == 2:
+        return np.einsum(
+            "xers,ri,sj->xeij",
+            elements.reshape(dim, nelts, *(dim,)*dim),
+            interp_map,
+            interp_map
+        ).reshape(dim, nelts, len(ref_nodes)**dim)
+    elif dim == 3:
+        return np.einsum(
+            "xerst,ri,sj,tk->xeijk",
+            elements.reshape(dim, nelts, *(2,)*dim),
+            interp_map,
+            interp_map,
+            interp_map
+        ).reshape(dim, nelts, len(ref_nodes)**dim)
+    else:
+        raise NotImplementedError("Only implemented for 2 <= dim <= 3")
+
 
 
 def jacobian(mapped_elements, basis_cls):
@@ -48,14 +60,24 @@ def jacobian(mapped_elements, basis_cls):
     ops = ReferenceOperators(basis_cls)
 
     dim, nelts, ndofs = mapped_elements.shape
-    ndofs_1d = int(ndofs**(1/dim))
+    ndofs_1d = len(basis_cls.nodes)
 
     mapped_tp = mapped_elements.reshape(dim, nelts, *(ndofs_1d,)*dim, order="F")
 
-    return np.array([
-        np.einsum("il,xelj->xeij", ops.diff_operator, mapped_tp),
-        np.einsum("jl,xeil->xeij", ops.diff_operator, mapped_tp),
-    ]).reshape(dim, dim, nelts, ndofs, order="F")
+    if dim == 2:
+        return np.array([
+            np.einsum("il,xelj->xeij", ops.diff_operator, mapped_tp),
+            np.einsum("jl,xeil->xeij", ops.diff_operator, mapped_tp),
+        ]).reshape(dim, dim, nelts, ndofs, order="F")
+    elif dim == 3:
+        return np.array([
+            np.einsum("il,xeljk->xeijk", ops.diff_operator, mapped_tp),
+            np.einsum("jl,xeilk->xeijk", ops.diff_operator, mapped_tp),
+            np.einsum("kl,xeijl->xeijk", ops.diff_operator, mapped_tp),
+        ]).reshape(dim, dim, nelts, ndofs, order="F")
+    else:
+        raise NotImplementedError("Only implemented for 2 <= dim <= 3")
+
 
 
 def inverse_jacobian_t(mapped_elements, basis_cls):
@@ -71,6 +93,4 @@ def jacobian_determinant(mapped_elements, basis_cls):
     """
     jac = jacobian(mapped_elements, basis_cls)
 
-    det = jac[0,0]*jac[1,1] - jac[0,1]*jac[1,0]
-
-    return np.abs(det)
+    return la.det(jac.T).T
