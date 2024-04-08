@@ -52,7 +52,6 @@ def map_elements(ref_nodes, elements):
         raise NotImplementedError("Only implemented for 2 <= dim <= 3")
 
 
-
 def jacobian(mapped_elements, basis_cls):
     """
     Returns the Jacobian of the mapping using the mapped nodes
@@ -77,7 +76,6 @@ def jacobian(mapped_elements, basis_cls):
         ]).reshape(dim, dim, nelts, ndofs, order="F")
     else:
         raise NotImplementedError("Only implemented for 2 <= dim <= 3")
-
 
 
 def inverse_jacobian_t(mapped_elements, basis_cls):
