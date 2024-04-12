@@ -1,3 +1,3 @@
 # discr-tools
 
-Tools for generating a nodal basis based on GLL or equidistant nodes, reference operators, and (coming soon) a rectangular uniform quadrilateral mesh for solving PDEs, e.g. 2D Poisson
+Simple implementation of tools that could be used for solving Poisson using SEM/FEM. Things like generating a nodal basis based on GLL/equidistant nodes, generating a simple quad/hex mesh, geometric factors, etc.
