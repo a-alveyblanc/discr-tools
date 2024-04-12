@@ -163,12 +163,13 @@ class Discretization:
         return global_indices
 
 
-    def _boundary_condition_mask(self, nnz):
+    def _boundary_condition_indices(self):
         """
         Construct an indexing mask to apply to an operator so boundary
         conditions can be implemented
         """
         nodes = self.nodes
+        dim = nodes.shape[0]
         dim, _ = nodes.shape
 
         tol = 1e-12
@@ -176,98 +177,72 @@ class Discretization:
         if dim == 2:
             
             x, y = nodes
+
+            x_max = np.max(x)
+            x_min = np.min(x)
+
+            y_max = np.max(y)
+            y_min = np.min(y)
             
-            # {{{ find boundary nodes and indices
+            x_max_idxs = np.where(np.abs(x - x_max) < tol)
+            x_min_idxs = np.where(np.abs(x - x_min) < tol)
 
-            x_min = np.min(x)
-            x_max = np.max(x)
+            y_max_idxs = np.where(np.abs(y - y_max) < tol)
+            y_min_idxs = np.where(np.abs(y - y_min) < tol)
 
-            y_min = np.min(y)
-            y_max = np.max(y)
-
-            x_min_idx = np.where(np.abs(x - x_min) < tol)
-            x_max_idx = np.where(np.abs(x - x_max) < tol)
-
-            y_min_idx = np.where(np.abs(y - y_min) < tol)
-            y_max_idx = np.where(np.abs(y - y_max) < tol)
-
-            all_idxs = np.vstack([
-                x_min_idx, x_max_idx, y_min_idx, y_max_idx
-            ]).flatten()
-
-            # }}}
-
-            # {{{ construct mask
-
-            bc_mask = np.zeros(nnz, dtype=bool)
-            bc_mask[all_idxs] = True
-
-            # }}}
-
-        elif dim == 3:
-
-            x, y, z = nodes
-
-            # {{{ find boundary nodes and indices
-
-            x_min = np.min(x)
-            x_max = np.max(x)
-
-            y_min = np.min(y)
-            y_max = np.max(y)
-
-            z_min = np.min(z)
-            z_max = np.max(z)
-
-            x_min_idx = np.where(np.abs(x - x_min) < tol)
-            x_max_idx = np.where(np.abs(x - x_max) < tol)
-
-            y_min_idx = np.where(np.abs(y - y_min) < tol)
-            y_max_idx = np.where(np.abs(y - y_max) < tol)
-
-            z_min_idx = np.where(np.abs(z - z_min) < tol)
-            z_max_idx = np.where(np.abs(z - z_max) < tol)
-
-            all_idxs = np.unique(np.vstack([
-                x_min_idx, x_max_idx, 
-                y_min_idx, y_max_idx, 
-                z_min_idx, z_max_idx
+            boundary_idxs = np.unique(np.vstack([
+                x_min_idxs, x_max_idxs,
+                y_min_idxs, y_max_idxs,
             ])).flatten()
 
-            # }}}
-
-            # {{{ construct mask
-
-            bc_mask = np.zeros(nnz, dtype=bool)
-            bc_mask[all_idxs] = True
-
-            # }}}
-
         else:
-            raise NotImplementedError("Only implemented for 2 <= dim <= 3")
+            raise NotImplementedError("Only implemented for dim = 2")
 
-        return bc_mask
+        return boundary_idxs 
 
 
-    def apply_boundary_condition(self, A):
+    def apply_boundary_condition(self, vec):
         """
-        Update an operator using `_boundary_condition_mask`.
+        Apply a boundary mask to a vector of DOF data or a matrix.
 
-        `A` is expected to be a sparse matrix.
-
-        Current capability is limited to homogeneous Dirichlet boundary
-        conditions.
+        Enforces homogeneous boundary conditions
         """
-        bc_mask = self._boundary_condition_mask(len(A.data))
+        idxs = self._boundary_condition_indices()
 
-        for ell, (i,j) in enumerate(zip(A.row, A.col)):
-            if bc_mask[i] or bc_mask[j]:
-                if i == j:
-                    A.data[ell] = 1.0
-                else:
-                    A.data[ell] = 0.0
+        # vector case (used for cg)
+        if isinstance(vec, np.ndarray):
+            _, nnodes = self.nodes.shape
+            _, nelts, _ = self.mapped_elements.shape
 
-        return A
+            bc_mask = np.ones((nnodes))
+            bc_mask[idxs] = 0.0
+            
+            g2l = self.global_to_local
+            for ielt in range(nelts):
+                vec[ielt,:] = vec[ielt,:] * bc_mask[g2l[ielt]]
+
+        # sparse matrix case (used for direct solves)
+        else:
+            bdry_flags = np.zeros(len(vec.data), dtype=bool)
+            bdry_flags[idxs] = True
+
+            for ell, (i,j) in enumerate(zip(vec.row, vec.col)):
+                if bdry_flags[i] or bdry_flags[j]:
+                    if i == j:
+                        vec.data[ell] = 1.0
+                    else:
+                        vec.data[ell] = 0.0
+
+        return vec
+
+
+    def factors(self):
+        """
+        Counts the number of occurrences in the global-to-local map and computes
+        1/(number of occurrences). Used to remove contributions from the RHS
+        vector.
+        """
+        return 1./np.unique(self.global_to_local, return_counts=True)[1]
 
  
     def plot_mapped_elements(self):
