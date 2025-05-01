@@ -5,71 +5,124 @@ from discr_tools.discretization import Discretization
 import numpy as np
 import numpy.linalg as la
 
-import pytest
-
 import pyopencl as cl
+import pytest
+from pytools.convergence import EOCRecorder
+
+# TODO: use sympy to come up with better test cases?
 
 
-@pytest.mark.parametrize("order", [4, 6, 8, 10])
-@pytest.mark.parametrize("nelts_1d", [1, 2, 4, 8])
-def test_gradient_3d(order, nelts_1d):
+@pytest.mark.parametrize("order", [2, 4, 8])
+def test_gradient_3d(order):
     a, b = -1, 1
     dim = 3
 
-    discr = Discretization(order, a, b, dim, nelts_1d)
-    x = discr.mapped_elements
-    basis = discr.basis_cls
+    eoc_rec = EOCRecorder()
 
-    f = x[0] + x[1]**2 + x[2]**3
-    grad_f = np.array([
-        1 + 0 * x[0],
-        2*x[1],
-        3*x[2]**2
-    ])
+    for nelts_1d in [4, 8, 10]:
+        discr = Discretization(order, a, b, dim, nelts_1d)
+        x = discr.mapped_elements
+        basis = discr.basis_cls
 
-    g = geo.inverse_jacobian_t(x, basis)
+        f = np.cos(x[0])*np.sin(x[1])*np.cos(x[2])
+        grad_f = np.array([
+            -np.sin(x[0])*np.sin(x[1])*np.cos(x[2]),
+            np.cos(x[0])*np.cos(x[1])*np.cos(x[2]),
+            -np.cos(x[0])*np.sin(x[1])*np.sin(x[2])
+        ])
 
-    ctx = cl.create_some_context()
-    queue = cl.CommandQueue(ctx)
+        g = geo.inverse_jacobian_t(x, basis)
 
-    grad = knl.gradient_3d(queue, discr.operators.diff_operator, f, g)
-    grad = grad.reshape(3, -1, (order+1)**3, order="F").get()
+        ctx = cl.create_some_context()
+        queue = cl.CommandQueue(ctx)
 
-    grad = grad.flatten()
-    grad_f = grad_f.flatten()
-    err = la.norm(grad_f - grad, np.inf) / la.norm(grad, np.inf)
+        grad = knl.gradient_3d(queue, discr.operators.diff_operator, f, g)
+        grad = grad.reshape(3, -1, (order+1)**3, order="F")
 
-    assert err <= 1e-11
+        grad = grad.flatten()
+        grad_f = grad_f.flatten()
+        err = la.norm(grad_f - grad, np.inf) / la.norm(grad, np.inf)
+        eoc_rec.add_data_point(1.0/nelts_1d, err)
+
+    print(eoc_rec)
+    assert (
+        eoc_rec.order_estimate() > (order - 0.5) or eoc_rec.max_error() < 1e-11
+    )
 
 
-@pytest.mark.parametrize("order", [4, 6, 8, 10])
-@pytest.mark.parametrize("nelts_1d", [1, 2, 4, 8])
-def test_divergence_3d(order, nelts_1d):
+@pytest.mark.parametrize("order", [2, 4, 8])
+def test_divergence_3d(order):
     a, b = -1, 1
     dim = 3
 
-    discr = Discretization(order, a, b, dim, nelts_1d)
-    x = discr.mapped_elements
-    basis = discr.basis_cls
+    eoc_rec = EOCRecorder()
 
-    f = np.array([
-        x[0],
-        x[1]**2,
-        x[2]**3
-    ])
+    for nelts_1d in [4, 6, 8]:
+        discr = Discretization(order, a, b, dim, nelts_1d)
+        x = discr.mapped_elements
+        basis = discr.basis_cls
 
-    div_f = (1 + 0*x[0]) + 2*x[1] + 3*x[2]**2
+        f = np.array([
+            np.sin(x[0])*np.cos(x[1]),
+            np.cos(x[1])*np.sin(x[2]),
+            np.sin(x[0])*np.cos(x[1])*np.sin(x[2])
+        ])
 
-    g = geo.inverse_jacobian_t(x, basis)
+        div_f = np.cos(x[0])*np.cos(x[1]) + \
+               -np.sin(x[1])*np.sin(x[2]) + \
+                np.sin(x[0])*np.cos(x[1])*np.cos(x[2])
 
-    ctx = cl.create_some_context()
-    queue = cl.CommandQueue(ctx)
+        g = geo.inverse_jacobian_t(x, basis)
 
-    div = knl.divergence_3d(queue, discr.operators.diff_operator, f, g)
-    div = div.reshape(-1, (order+1)**3, order="F").get()
+        ctx = cl.create_some_context()
+        queue = cl.CommandQueue(ctx)
 
-    div = div.flatten()
-    div_f = div_f.flatten()
-    err = la.norm(div_f - div, np.inf) / la.norm(div, np.inf)
+        div = knl.divergence_3d(queue, discr.operators.diff_operator, f, g)
+        div = div.reshape(-1, (order+1)**3, order="F")
 
-    assert err <= 1e-10
+        div = div.flatten()
+        div_f = div_f.flatten()
+        err = la.norm(div_f - div, np.inf) / la.norm(div, np.inf)
+        eoc_rec.add_data_point(1/nelts_1d, err)
+
+    print(eoc_rec)
+    assert (
+        eoc_rec.order_estimate() >= (order - 0.5) or eoc_rec.max_error() < 1e-10
+    )
+
+
+@pytest.mark.parametrize("order", [2, 4, 8])
+def test_divgrad_3d(order):
+    a, b = -1, 1
+    dim = 3
+
+    eoc_rec = EOCRecorder()
+
+    for nelts_1d in [8, 12, 16]:
+        discr = Discretization(order, a, b, dim, nelts_1d)
+        x = discr.mapped_elements
+        basis = discr.basis_cls
+
+        f = np.cos(x[0])*np.sin(x[1])*np.cos(x[2])
+        divgrad_f = -3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])
+
+        g = geo.inverse_jacobian_t(x, basis)
+
+        ctx = cl.create_some_context()
+        queue = cl.CommandQueue(ctx)
+
+        divgrad = knl.divgrad_3d(queue, discr.operators.diff_operator, f, g)
+        divgrad = divgrad.reshape(-1, (order+1)**3, order="F")
+
+        divgrad = divgrad.flatten()
+        divgrad_f = divgrad_f.flatten()
+        err = la.norm(divgrad_f - divgrad, np.inf) / la.norm(divgrad, np.inf)
+        eoc_rec.add_data_point(1/nelts_1d, err)
+
+    # order requirements could be more strict, but we're just looking for
+    # something comparable to the analytic solution
+    print(eoc_rec)
+    assert (
+        eoc_rec.order_estimate() >= (order - 0.5) or eoc_rec.max_error() < 1e-5
+    )
+

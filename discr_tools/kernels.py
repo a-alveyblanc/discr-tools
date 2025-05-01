@@ -133,7 +133,7 @@ def gradient_3d(queue, operator, vec, metrics):
 
     knl_exec = knl.executor(queue)
     _, grad_u = knl_exec(queue, u=u, d=d_d, du=grad_u, G=metrics)
-    return grad_u[0].reshape(3, -1, npts, order="F")
+    return grad_u[0].reshape(3, -1, npts, order="F").get()
 
 
 def divergence_3d(queue, operator, vec, metrics):
@@ -268,4 +268,11 @@ def divergence_3d(queue, operator, vec, metrics):
 
     knl_exec = knl.executor(queue)
     _, div_u = knl_exec(queue, u=u, d=d_d, div_u=div_u, G=metrics)
-    return div_u[0].reshape(-1, npts, order="F")
+    return div_u[0].reshape(-1, npts, order="F").get()
+
+
+def divgrad_3d(queue, operator, vec, metrics):
+    return divergence_3d(queue,
+                         operator,
+                         gradient_3d(queue, operator, vec, metrics),
+                         metrics)
