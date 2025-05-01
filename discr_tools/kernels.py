@@ -138,7 +138,7 @@ def gradient_3d(queue, operator, vec, metrics):
 
 def divergence_3d(queue, operator, vec, metrics):
     """
-    Register tiled gradient operator.
+    Register tiled divergence operator.
     """
 
     _, nel, npts = vec.shape
