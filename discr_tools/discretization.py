@@ -11,10 +11,10 @@ import matplotlib.pyplot as plt
 
 from functools import cmp_to_key
 
-from . import geometry as geo
-from .nodal import GLLNodalBasis
-from .operators import ReferenceOperators
-from .mesh import Mesh
+from discr_tools import geometry as geo
+from discr_tools.nodal import GLLNodalBasis
+from discr_tools.operators import ReferenceOperators
+from discr_tools.mesh import Mesh
 
 
 class Discretization:
@@ -33,7 +33,7 @@ class Discretization:
     @property
     def mesh(self):
         return self._mesh
-    
+
 
     @property
     def operators(self):
@@ -72,7 +72,7 @@ class Discretization:
         elts = self.mapped_elements
         _, nelts, nnodes = elts.shape
 
-        # {{{ establish local ordering 
+        # {{{ establish local ordering
 
         local_ordering = []
         ipoint = 0
@@ -91,7 +91,7 @@ class Discretization:
             if isinstance(a, tuple):
                 a = a[1]
                 b = b[1]
-            
+
             if a[0] > b[0]:
                 return 1
             if a[0] < b[0]:
@@ -103,9 +103,9 @@ class Discretization:
             else:
                 return 0
 
-        local_ordering = sorted(local_ordering, 
+        local_ordering = sorted(local_ordering,
                                 key=cmp_to_key(lexicographical_sort))
-        
+
         # }}}
 
         # {{{ construct new node set and global ids
@@ -175,7 +175,7 @@ class Discretization:
         tol = 1e-12
 
         if dim == 2:
-            
+
             x, y = nodes
 
             x_max = np.max(x)
@@ -183,7 +183,7 @@ class Discretization:
 
             y_max = np.max(y)
             y_min = np.min(y)
-            
+
             x_max_idxs = np.where(np.abs(x - x_max) < tol)
             x_min_idxs = np.where(np.abs(x - x_min) < tol)
 
@@ -198,7 +198,7 @@ class Discretization:
         else:
             raise NotImplementedError("Only implemented for dim = 2")
 
-        return boundary_idxs 
+        return boundary_idxs
 
 
     def apply_boundary_condition(self, vec):
@@ -216,7 +216,7 @@ class Discretization:
 
             bc_mask = np.ones((nnodes))
             bc_mask[idxs] = 0.0
-            
+
             g2l = self.global_to_local
             for ielt in range(nelts):
                 vec[ielt,:] = vec[ielt,:] * bc_mask[g2l[ielt]]
@@ -244,7 +244,7 @@ class Discretization:
         """
         return 1./np.unique(self.global_to_local, return_counts=True)[1]
 
- 
+
     def plot_mapped_elements(self):
         plt.plot(self.mesh.vertices[0], self.mesh.vertices[1], '*',
                  c='tab:red', label='Element vertices', zorder=5, markersize=10)

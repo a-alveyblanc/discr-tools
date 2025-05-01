@@ -25,7 +25,7 @@ def plot_results(nodes, result, u=None, u_h=None, plot_solution=False):
     vmin = np.min(result)
     vmax = np.max(result)
     norm = colors.Normalize(vmin=vmin, vmax=vmax)
-    fig.colorbar(mappable=cm.ScalarMappable(norm=norm), location='bottom', 
+    fig.colorbar(mappable=cm.ScalarMappable(norm=norm), location='bottom',
                  ax=[ax2d,ax3d])
     plt.show()
 
@@ -36,11 +36,11 @@ def plot_results(nodes, result, u=None, u_h=None, plot_solution=False):
             raise TypeError("Must include solution to plot the solution")
 
         fig = plt.figure(layout='constrained')
-        fig.suptitle("Solution on $\Omega$");
+        fig.suptitle(r"Solution on $\Omega$")
 
         ax2d = fig.add_subplot(1, 2, 1, aspect='equal')
         ax3d = fig.add_subplot(1, 2, 2, projection='3d')
-        
+
         ax2d.scatter(nodes[0], nodes[1], c=u_h)
         ax3d.scatter(nodes[0], nodes[1], u_h, c=u_h)
         vmin = np.min(u_h)

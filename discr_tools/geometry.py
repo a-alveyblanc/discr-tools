@@ -7,14 +7,14 @@ of the inverse mapping.
 import numpy as np
 import numpy.linalg as la
 
-from .nodal import EquispacedNodalBasis
-from .operators import ReferenceOperators
+from discr_tools.nodal import EquispacedNodalBasis
+from discr_tools.operators import ReferenceOperators
 
 
 def get_interpolatory_map(ref_nodes):
     """
     Evaluates a 1D Lagrange basis at the reference nodes. This is used to map
-    the reference nodes to a physical element by using only the four vertices of 
+    the reference nodes to a physical element by using only the four vertices of
     the element.
     """
     mapping_cls = EquispacedNodalBasis(1)
@@ -80,7 +80,7 @@ def jacobian(mapped_elements, basis_cls):
 
 def inverse_jacobian_t(mapped_elements, basis_cls):
     """
-    Returns the inverse of the mapping Jacobian 
+    Returns the inverse of the mapping Jacobian
     """
     return la.inv(jacobian(mapped_elements, basis_cls).T).T
 
