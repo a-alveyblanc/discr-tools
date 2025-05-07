@@ -21,6 +21,10 @@ class Discretization:
 
     def __init__(self, order, a, b, dim, nelts_1d, basis_cls=GLLNodalBasis):
 
+        self.dim = dim
+        self.order = order
+        self.nelts = nelts_1d**dim
+
         self._basis_cls = basis_cls(order)
         self._operators = ReferenceOperators(self._basis_cls)
 
@@ -92,16 +96,13 @@ class Discretization:
                 a = a[1]
                 b = b[1]
 
-            if a[0] > b[0]:
-                return 1
-            if a[0] < b[0]:
-                return -1
-            if a[1] > b[1]:
-                return 1
-            if a[1] < b[1]:
-                return -1
-            else:
-                return 0
+            for i in range(self.dim):
+                if a[i] > b[i]:
+                    return 1
+                if a[i] < b[i]:
+                    return -1
+
+            return 0
 
         local_ordering = sorted(local_ordering,
                                 key=cmp_to_key(lexicographical_sort))
@@ -110,7 +111,7 @@ class Discretization:
 
         # {{{ construct new node set and global ids
 
-        node_tol = 1e-14
+        tol = 1e-14
         global_id = 0
         global_to_local = []
         new_nodes = []
@@ -120,7 +121,7 @@ class Discretization:
 
             pt1 = local_ordering[i][1]
             pt2 = local_ordering[i+1][1]
-            if la.norm(pt1 - pt2) > node_tol:
+            if la.norm(pt1 - pt2) > tol:
                 new_nodes.append(pt1)
                 global_id += 1
 
@@ -195,8 +196,36 @@ class Discretization:
                 y_min_idxs, y_max_idxs,
             ])).flatten()
 
+        elif dim == 3:
+
+            x, y, z = nodes
+
+            x_max = np.max(x)
+            x_min = np.min(x)
+
+            y_max = np.max(y)
+            y_min = np.min(y)
+
+            z_max = np.max(z)
+            z_min = np.min(z)
+
+            x_max_idxs = np.where(np.abs(x - x_max) < tol)
+            x_min_idxs = np.where(np.abs(x - x_min) < tol)
+
+            y_max_idxs = np.where(np.abs(y - y_max) < tol)
+            y_min_idxs = np.where(np.abs(y - y_min) < tol)
+
+            z_max_idxs = np.where(np.abs(z - z_max) < tol)
+            z_min_idxs = np.where(np.abs(z - z_min) < tol)
+
+            boundary_idxs = np.unique(np.vstack([
+                x_min_idxs, x_max_idxs,
+                y_min_idxs, y_max_idxs,
+                z_min_idxs, z_max_idxs
+            ])).flatten()
+
         else:
-            raise NotImplementedError("Only implemented for dim = 2")
+            raise NotImplementedError("Only implemented for dim = 2, 3")
 
         return boundary_idxs
 

@@ -22,21 +22,32 @@ def assemble(discr, rhs):
 
     # get operators
     op = discr.operators
-    M_1d = op.mass_matrix
     Vp_1d = op.vandermonde_dx
-    I_1d = np.eye(Vp_1d.shape[0]) # used to construct 2D operators
+    M_1d = op.mass_matrix
+    I_1d = np.eye(Vp_1d.shape[0])  # used to construct 2D operators
 
     # get quadrature weights and |J|
     wts = discr.basis_cls.weights
-    det_J = geo.jacobian_determinant(x, discr.basis_cls)
+    det_j = geo.jacobian_determinant(x, discr.basis_cls)
+    inv_jac_t = geo.inverse_jacobian_t(x, discr.basis_cls)
+    g = np.einsum(
+        "kiep,kjep,ep,p->ijep",
+        inv_jac_t,
+        inv_jac_t,
+        det_j,
+        np.kron(wts, wts)
+    )
 
     # evaluate rhs for all elements
-    f = det_J * rhs(x) * np.kron(wts, wts).flatten()
+    f = det_j * rhs(x) * np.kron(wts, wts).flatten()
 
     # form reference stiffness matrix (uniform mesh -> never changes)
-    W = (h/2)*np.kron(M_1d, M_1d)
-    K = (2/h)*la.inv(M_1d) @ Vp_1d.T @ M_1d @ Vp_1d
-    S_local = W @ (np.kron(K, I_1d) + np.kron(I_1d, K))
+    Dr = np.kron(Vp_1d, I_1d)
+    Ds = np.kron(I_1d, Vp_1d)
+    D = np.array([Dr, Ds])
+
+    # NOTE: forms all element-local operators; not advised in practice
+    S_local = np.einsum("rki,xrek,rkj->eij", D, g, D)
 
     # assembly
     # sparse global stiffness matrix & load vector
@@ -58,7 +69,7 @@ def assemble(discr, rhs):
         f_cols[ielt] = 0
 
         # global stiffness matrix
-        S_data[ielt] = S_local.flatten()
+        S_data[ielt] = S_local[ielt].flatten()
         S_rows[ielt] = np.repeat(g2l[ielt], ndofs)
         S_cols[ielt] = np.tile(g2l[ielt], ndofs)
 
