@@ -1,12 +1,40 @@
 import discr_tools.geometry as geo
 import discr_tools.kernels as knl
 
-from functools import partial
-
 import numpy as np
 
 
-def poisson_matvec(queue, discr):
+class MatvecBase:
+    def __init__(self, discr, queue=None):
+        if queue is None:
+            self._use_gpu_matvec = False
+        else:
+            self._queue = queue
+            self._use_gpu_matvec = True
+
+        self.discr = discr
+
+    def _gpu_matvec(self):
+        pass
+
+    def _cpu_matvec(self):
+        pass
+
+    def _matvec(self):
+        if self._use_gpu_matvec:
+            return self._gpu_matvec()
+        return self._cpu_matvec()
+
+    def __call__(self, u):
+        return self._matvec()(u)
+
+
+class PoissonMatvec(MatvecBase):
+    def _cpu_matvec(self):
+        return poisson_matvec(self.discr)
+
+
+def poisson_matvec(discr):
     dim, nelts, npts = discr.mapped_elements.shape
     npts_1d = discr.order + 1
 
@@ -61,7 +89,6 @@ def poisson_matvec(queue, discr):
 
         else:
             raise ValueError("Only supported for dim = 2, 3")
-
 
         return discr.scatter(discr.apply_mask(lap_u))
 

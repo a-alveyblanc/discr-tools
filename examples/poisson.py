@@ -4,10 +4,12 @@ import discr_tools.matvecs as mv
 from discr_tools.assembly import assemble
 from discr_tools.discretization import Discretization
 
-import os
-
 import numpy as np
 import numpy.linalg as la
+
+import os
+
+import pyopencl as cl
 
 import scipy.sparse.linalg as spla
 import sympy as sp
@@ -19,12 +21,20 @@ if "PYOPENCL_CTX" not in os.environ:
     os.environ["PYOPENCL_CTX"] = "1"
 
 
-def main(nelts_1d, order, dim, direct_solve=None, cg_solve=None):
+def main(nelts_1d, order, dim,
+         direct_solve=None, cg_solve=None, use_gpu=None):
     if not cg_solve and not direct_solve:
         cg_solve = True
 
     if dim == 1:
         raise ValueError("1D not supported")
+
+    nelements = nelts_1d**dim
+    ndofs = (nelts_1d**dim)*(order+1)**dim
+    print(f"Dim        = {dim}")
+    print(f"Elements   = {nelements}")
+    print(f"Order      = {order}")
+    print(f"Total DOFs = {ndofs}")
 
     x_sp = sp.symbols("".join(f"x{i} " for i in range(dim)))
 
@@ -57,12 +67,6 @@ def main(nelts_1d, order, dim, direct_solve=None, cg_solve=None):
     u_l_exact = u(discr.mapped_elements)
     u_l_l2 = np.sqrt(np.sum(u_l_exact**2 * det_j * wts))
 
-    nelements = nelts_1d**dim
-    ndofs = (nelts_1d**dim)*(order+1)**dim
-    print(f"Elements   = {nelements}")
-    print(f"Order      = {order}")
-    print(f"Total DOFs = {ndofs}")
-
     # direct solver
     if direct_solve:
         start = time.time()
@@ -85,7 +89,14 @@ def main(nelts_1d, order, dim, direct_solve=None, cg_solve=None):
         f = det_j * rhs(discr.mapped_elements) * wts
         f_g = discr.scatter(discr.apply_mask(f))
 
-        matvec = mv.poisson_matvec(None, discr)
+        if use_gpu:
+            ctx = cl.create_some_context()
+            queue = cl.CommandQueue(ctx)
+
+            matvec = mv.PoissonMatvec(queue, discr)
+        else:
+            matvec = mv.PoissonMatvec(discr)
+
         lin_op = spla.LinearOperator(f_g.shape*2, matvec)
 
         start = time.time()
@@ -113,6 +124,7 @@ if __name__ == "__main__":
                         default=2)
     parser.add_argument("--direct_solve", action="store_true")
     parser.add_argument("--use_cg", action="store_true")
+    parser.add_argument("--use_gpu", action="store_true")
 
     args = parser.parse_args()
 
@@ -121,5 +133,6 @@ if __name__ == "__main__":
         order=args.order,
         dim=args.dim,
         direct_solve=args.direct_solve,
-        cg_solve=args.use_cg
+        cg_solve=args.use_cg,
+        use_gpu=args.use_gpu
     )
