@@ -18,12 +18,10 @@ def assemble(discr, rhs):
     """
     # get nodes, mesh size
     x = discr.mapped_elements
-    h = np.abs(x[0,0,0] - x[0,0,-1]) # uniform mesh -> never changes
 
     # get operators
     op = discr.operators
     Vp_1d = op.vandermonde_dx
-    M_1d = op.mass_matrix
     I_1d = np.eye(Vp_1d.shape[0])  # used to construct 2D operators
 
     # get quadrature weights and |J|
@@ -61,7 +59,7 @@ def assemble(discr, rhs):
     f_rows = np.zeros_like(f_data).astype(int)
     f_cols = np.zeros_like(f_data).astype(int)
 
-    g2l = discr.global_to_local # global to local map
+    g2l = discr.local_to_global # global to local map
     for ielt in range(nelts):
         # rhs
         f_data[ielt] = f[ielt]

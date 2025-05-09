@@ -255,7 +255,6 @@ def divergence_3d(queue, operator, vec, metrics):
 
     knl = lp.set_instruction_priority(knl, "id:d_fetch", 5)
 
-    # NOTE: awful device copy tricks because of weird strides
     d_d = cl_array.to_device(queue, operator)
     metrics = cl_array.to_device(queue, metrics.copy())
     u = cl_array.to_device(queue, vec)
@@ -278,21 +277,3 @@ def divgrad_3d(queue, operator, vec, metrics):
                          metrics)
 
 
-def gather(queue, vec, local_to_global):
-    nelts, npts = local_to_global.shape
-    vec_g = np.zeros((nelts, npts))
-
-    for ielt in range(nelts):
-        vec_g[ielt] = vec[local_to_global[ielt]]
-
-    return vec_g
-
-
-def scatter(queue, vec, local_to_global):
-    nelts, _ = local_to_global.shape
-    vec_s = np.zeros(len(np.unique(local_to_global.flatten())))
-
-    for ielt in range(nelts):
-        vec_s[local_to_global[ielt]] += vec[ielt]
-
-    return vec_s

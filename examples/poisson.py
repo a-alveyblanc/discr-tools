@@ -44,7 +44,7 @@ def main(nelts_1d, order, dim, direct_solve, iterative_solve):
     g = np.einsum("kiep,kjep,ep,p->ijep", inv_jac_t, inv_jac_t, det_j, wts_2d)
 
     def matvec(u):
-        u_g = knl.gather(None, u, discr.global_to_local)
+        u_g = discr.gather(u)
 
         eye = np.eye(order+1)
         dr = np.kron(discr.operators.diff_operator, eye)
@@ -61,7 +61,7 @@ def main(nelts_1d, order, dim, direct_solve, iterative_solve):
 
         lap_u = discr.apply_boundary_condition(uxx + uyy)
 
-        return knl.scatter(None, lap_u, discr.global_to_local)
+        return discr.scatter(lap_u)
 
     u_l_exact = u(discr.mapped_elements)
     u_l_l2 = np.sqrt(np.sum(u_l_exact**2 * det_j * wts_2d))
@@ -73,7 +73,7 @@ def main(nelts_1d, order, dim, direct_solve, iterative_solve):
         u_g = spla.spsolve(s_g, rhs_g)
         direct_time = time.time() - start
 
-        u_l = knl.gather(None, u_g, discr.global_to_local)
+        u_l = discr.gather(u_g)
         abs_err = np.abs(u_l - u_l_exact)
         direct_rel_l2_err = np.sqrt(np.sum(abs_err**2 * det_j * wts_2d)) / u_l_l2
         print(f"Direct: {direct_rel_l2_err:.3e}, took {direct_time:.3f} s")
@@ -81,11 +81,7 @@ def main(nelts_1d, order, dim, direct_solve, iterative_solve):
     if iterative_solve:
         # iterative solver (CG for now)
         f = det_j * rhs(discr.mapped_elements) * wts_2d
-        f_g = knl.scatter(
-            None,
-            discr.apply_boundary_condition(f),
-            discr.global_to_local
-        )
+        f_g = discr.scatter(discr.apply_boundary_condition(f))
 
         lin_op = spla.LinearOperator(f_g.shape*2, matvec)
 
@@ -93,7 +89,7 @@ def main(nelts_1d, order, dim, direct_solve, iterative_solve):
         u_matfree, _ = spla.cg(lin_op, f_g)
         it_time = time.time() - start
 
-        u_l_matfree = knl.gather(None, u_matfree, discr.global_to_local)
+        u_l_matfree = discr.gather(u_matfree)
 
         abs_err = np.abs(u_l_matfree - u_l_exact)
         it_rel_l2_err = np.sqrt(np.sum(abs_err**2 * det_j * wts_2d)) / u_l_l2

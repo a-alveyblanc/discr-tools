@@ -32,43 +32,37 @@ class Discretization:
         self._mapped_elements = geo.map_elements(self._basis_cls.nodes,
                                                  self.mesh.elements)
 
-        self.__global_to_local = self._global_to_local()
+        self.__local_to_global = self._local_to_global()
 
     @property
     def mesh(self):
         return self._mesh
 
-
     @property
     def operators(self):
         return self._operators
-
 
     @property
     def mapped_elements(self):
         return self._mapped_elements
 
-
     @property
     def nodes(self):
         return self._nodes
 
-
     @property
-    def global_to_local(self):
+    def local_to_global(self):
         try:
-            return self.__global_to_local
+            return self.__local_to_global
         except AttributeError:
-            self.__global_to_local = self._global_to_local()
-            return self.__global_to_local
-
+            self.__local_to_global = self._local_to_global()
+            return self.__local_to_global
 
     @property
     def basis_cls(self):
         return self._basis_cls
 
-
-    def _global_to_local(self):
+    def _local_to_global(self):
         """
         Establishes global to local node numbering for the case where the number
         of vertices is smaller than the total number of nodes in an element
@@ -158,11 +152,10 @@ class Discretization:
 
         # }}}
 
-        self.__global_to_local = global_indices
+        self.__local_to_global = global_indices
         self._nodes = new_nodes
 
         return global_indices
-
 
     def _boundary_condition_indices(self):
         """
@@ -229,7 +222,6 @@ class Discretization:
 
         return boundary_idxs
 
-
     def apply_boundary_condition(self, vec):
         """
         Apply a boundary mask to a vector of DOF data or a matrix.
@@ -246,7 +238,7 @@ class Discretization:
             bc_mask = np.ones((nnodes))
             bc_mask[idxs] = 0.0
 
-            g2l = self.global_to_local
+            g2l = self.local_to_global
             for ielt in range(nelts):
                 vec[ielt,:] = vec[ielt,:] * bc_mask[g2l[ielt]]
 
@@ -264,15 +256,23 @@ class Discretization:
 
         return vec
 
+    def gather(self, vec):
+        nelts, npts = self.local_to_global.shape
+        vec_g = np.zeros((nelts, npts))
 
-    def factors(self):
-        """
-        Counts the number of occurrences in the global-to-local map and computes
-        1/(number of occurrences). Used to remove contributions from the RHS
-        vector.
-        """
-        return 1./np.unique(self.global_to_local, return_counts=True)[1]
+        for ielt in range(nelts):
+            vec_g[ielt] = vec[self.local_to_global[ielt]]
 
+        return vec_g
+
+    def scatter(self, vec):
+        nelts, _ = self.local_to_global.shape
+        vec_s = np.zeros(len(np.unique(self.local_to_global.flatten())))
+
+        for ielt in range(nelts):
+            vec_s[self.local_to_global[ielt]] += vec[ielt]
+
+        return vec_s
 
     def plot_mapped_elements(self):
         plt.plot(self.mesh.vertices[0], self.mesh.vertices[1], '*',
