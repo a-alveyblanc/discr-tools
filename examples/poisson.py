@@ -1,5 +1,6 @@
 import discr_tools.geometry as geo
 import discr_tools.kernels as knl
+import discr_tools.matvecs as mv
 from discr_tools.assembly import assemble
 from discr_tools.discretization import Discretization
 
@@ -25,12 +26,17 @@ def main(nelts_1d, order, dim, direct_solve=None, cg_solve=None):
     if dim == 1:
         raise ValueError("1D not supported")
 
-    x_sp = sp.symbols('x0 x1')
+    x_sp = sp.symbols("".join(f"x{i} " for i in range(dim)))
 
-    u_expr = sp.sin(sp.pi*x_sp[0])*sp.sin(sp.pi*x_sp[1])  # type: ignore
+    u_expr = 1.
+    for i in range(dim):
+        u_expr *= sp.sin(sp.pi*x_sp[i])  # type: ignore
     u_lambda = sp.lambdify(x_sp, u_expr)
 
-    lap_u_expr = -(u_expr.diff(x_sp[0], 2) + u_expr.diff(x_sp[1], 2))
+    lap_u_expr = 0.
+    for i in range(dim):
+        lap_u_expr += u_expr.diff(x_sp[0], 2)  # type: ignore
+    lap_u_expr = -lap_u_expr
     lap_u_lambda = sp.lambdify(x_sp, lap_u_expr)
 
     def u(x):
@@ -42,33 +48,14 @@ def main(nelts_1d, order, dim, direct_solve=None, cg_solve=None):
     a, b = -1, 1
     discr = Discretization(order, a, b, dim, nelts_1d)
 
-    inv_jac_t = geo.inverse_jacobian_t(discr.mapped_elements, discr.basis_cls)
     det_j = geo.jacobian_determinant(discr.mapped_elements, discr.basis_cls)
-    wts_2d = np.kron(*(discr.basis_cls.weights,)*2)  # type: ignore
-    g = np.einsum("kiep,kjep,ep,p->ijep", inv_jac_t, inv_jac_t, det_j, wts_2d)
+    wts = np.kron(*(discr.basis_cls.weights,)*2)  # type: ignore
 
-    def matvec(u):
-        u_g = discr.gather(u)
-
-        eye = np.eye(order+1)
-        dr = np.kron(discr.operators.diff_operator, eye)
-        ds = np.kron(eye, discr.operators.diff_operator)
-
-        ur = np.einsum("il,el->ei", dr, u_g)
-        us = np.einsum("il,el->ei", ds, u_g)
-
-        ux = g[0,0]*ur + g[0,1]*us
-        uy = g[1,0]*ur + g[1,1]*us
-
-        uxx = np.einsum("li,el->ei", dr, ux)
-        uyy = np.einsum("li,el->ei", ds, uy)
-
-        lap_u = discr.apply_mask(uxx + uyy)
-
-        return discr.scatter(lap_u)
+    if dim == 3:
+        wts = np.kron(wts, discr.basis_cls.weights)
 
     u_l_exact = u(discr.mapped_elements)
-    u_l_l2 = np.sqrt(np.sum(u_l_exact**2 * det_j * wts_2d))
+    u_l_l2 = np.sqrt(np.sum(u_l_exact**2 * det_j * wts))
 
     nelements = nelts_1d**dim
     ndofs = (nelts_1d**dim)*(order+1)**dim
@@ -88,16 +75,17 @@ def main(nelts_1d, order, dim, direct_solve=None, cg_solve=None):
 
         u_l = discr.gather(u_g)
         abs_err = np.abs(u_l - u_l_exact)
-        direct_rel_l2_err = np.sqrt(np.sum(abs_err**2 * det_j * wts_2d)) / u_l_l2
+        direct_rel_l2_err = np.sqrt(np.sum(abs_err**2 * det_j * wts)) / u_l_l2
         print(f"Direct: {direct_rel_l2_err:.3e}, solve took {direct_time:.3f}s",
               f" assembly took {assembly_time:.3f}s")
         print(f"        {(ndofs / direct_time):.3f} DOFs/s")
 
     # CG
     if cg_solve:
-        f = det_j * rhs(discr.mapped_elements) * wts_2d
+        f = det_j * rhs(discr.mapped_elements) * wts
         f_g = discr.scatter(discr.apply_mask(f))
 
+        matvec = mv.poisson_matvec(None, discr)
         lin_op = spla.LinearOperator(f_g.shape*2, matvec)
 
         start = time.time()
@@ -107,7 +95,7 @@ def main(nelts_1d, order, dim, direct_solve=None, cg_solve=None):
         u_l_matfree = discr.gather(u_matfree)
 
         abs_err = np.abs(u_l_matfree - u_l_exact)
-        it_rel_l2_err = np.sqrt(np.sum(abs_err**2 * det_j * wts_2d)) / u_l_l2
+        it_rel_l2_err = np.sqrt(np.sum(abs_err**2 * det_j * wts)) / u_l_l2
         print(f"CG    : {it_rel_l2_err:.3e}, solve took {it_time:.3f} s")
         print(f"        {(ndofs / it_time):.3f} DOFs/s")
 
