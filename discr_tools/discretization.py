@@ -216,7 +216,7 @@ class Discretization:
 
         return boundary_idxs
 
-    def apply_boundary_condition(self, vec):
+    def apply_mask(self, vec):
         """
         Apply a boundary mask to a vector of DOF data or a matrix.
 

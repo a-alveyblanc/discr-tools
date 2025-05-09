@@ -72,7 +72,7 @@ def assemble(discr, rhs):
     S_global = sp.coo_matrix((S_data.flatten(), S_coordinates))
     S_global.sum_duplicates()
 
-    S_global = discr.apply_boundary_condition(S_global).tocsr()
+    S_global = discr.apply_mask(S_global).tocsr()
 
     # assemble global load vector
     f_coordinates = (f_rows.flatten(), f_cols.flatten())
