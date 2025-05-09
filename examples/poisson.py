@@ -18,7 +18,10 @@ if "PYOPENCL_CTX" not in os.environ:
     os.environ["PYOPENCL_CTX"] = "1"
 
 
-def main(nelts_1d, order, dim, direct_solve, iterative_solve):
+def main(nelts_1d, order, dim, direct_solve=None, iterative_solve=None):
+    if not iterative_solve and not direct_solve:
+        iterative_solve = True
+
     x_sp = sp.symbols('x0 x1')
 
     u_expr = sp.sin(sp.pi*x_sp[0])*sp.sin(sp.pi*x_sp[1])  # type: ignore
@@ -66,6 +69,12 @@ def main(nelts_1d, order, dim, direct_solve, iterative_solve):
     u_l_exact = u(discr.mapped_elements)
     u_l_l2 = np.sqrt(np.sum(u_l_exact**2 * det_j * wts_2d))
 
+    nelements = nelts_1d**dim
+    ndofs = (nelts_1d**dim)*(order+1)**dim
+    print(f"Elements   = {nelements}")
+    print(f"Order      = {order}")
+    print(f"Total DOFs = {ndofs}")
+
     # direct solver
     if direct_solve:
         start = time.time()
@@ -77,6 +86,7 @@ def main(nelts_1d, order, dim, direct_solve, iterative_solve):
         abs_err = np.abs(u_l - u_l_exact)
         direct_rel_l2_err = np.sqrt(np.sum(abs_err**2 * det_j * wts_2d)) / u_l_l2
         print(f"Direct: {direct_rel_l2_err:.3e}, took {direct_time:.3f} s")
+        print(f"        {(ndofs / direct_time):.3f} DOFs/s")
 
     if iterative_solve:
         # iterative solver (CG for now)
@@ -94,6 +104,7 @@ def main(nelts_1d, order, dim, direct_solve, iterative_solve):
         abs_err = np.abs(u_l_matfree - u_l_exact)
         it_rel_l2_err = np.sqrt(np.sum(abs_err**2 * det_j * wts_2d)) / u_l_l2
         print(f"CG    : {it_rel_l2_err:.3e}, took {it_time:.3f} s")
+        print(f"        {(ndofs / it_time):.3f} DOFs/s")
 
 
 if __name__ == "__main__":
@@ -102,9 +113,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--nelts_1d", action="store", type=int,
-                        default=4)
+                        default=10)
     parser.add_argument("--order", action="store", type=int,
-                        default=1)
+                        default=5)
     parser.add_argument("--dim", action="store", type=int,
                         default=2)
     parser.add_argument("--direct_solve", action="store_true")
