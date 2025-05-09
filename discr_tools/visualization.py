@@ -7,7 +7,7 @@ from matplotlib import cm, colors
 def plot_results(nodes, result, u=None, u_h=None, plot_solution=False):
     # plotting
     fig = plt.figure(layout='constrained')
-    fig.suptitle("Error on $\Omega$");
+    fig.suptitle(r"Error on $\Omega$")
 
     # 2d plot of error on domain
     ax2d = fig.add_subplot(1, 2, 1, aspect='equal')
@@ -29,12 +29,7 @@ def plot_results(nodes, result, u=None, u_h=None, plot_solution=False):
                  ax=[ax2d,ax3d])
     plt.show()
 
-    # change to 1 to see solution
-    if plot_solution:
-
-        if u is None or u_h is None:
-            raise TypeError("Must include solution to plot the solution")
-
+    if plot_solution and u_h is not None:
         fig = plt.figure(layout='constrained')
         fig.suptitle(r"Solution on $\Omega$")
 

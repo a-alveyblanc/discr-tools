@@ -1,8 +1,4 @@
-"""
-This file contains routines for assembling the global system
-"""
 import numpy as np
-import numpy.linalg as la
 
 import scipy.sparse as sp
 

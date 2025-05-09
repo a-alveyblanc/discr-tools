@@ -1,7 +1,3 @@
-"""
-This file contains everything necessary to set up a simple 1D nodal basis. Also
-provides a routine to compute GLL nodes and quadrature weights 
-"""
 import numpy as np
 import numpy.linalg as la
 
@@ -18,7 +14,6 @@ class Lagrange:
         self.nnodes = order + 1
         self.nodes = nodes
         self.weights = weights
-
 
     @property
     def basis(self):
@@ -37,7 +32,6 @@ class Lagrange:
                 for i in range(self.nnodes)
             ]
             return self.__basis
-
 
     @property
     def basis_dx(self):
@@ -93,7 +87,7 @@ def undetermined_coeffs(nodes):
 
 def equispaced_nodes_weights(n):
     nodes = np.linspace(-1, 1, num=n)
-    weights = undetermined_coeffs(nodes) 
+    weights = undetermined_coeffs(nodes)
 
     return nodes, weights
 
@@ -101,7 +95,7 @@ def equispaced_nodes_weights(n):
 def gll_nodes_weights(n):
     """
     Computes a 1D set of GLL quadrature nodes and weights. Nodes are taken to
-    be -1 and 1 (the endpoints of the reference domain) and the roots of the 
+    be -1 and 1 (the endpoints of the reference domain) and the roots of the
     derivative of the n-1 Legendre polynomial.
 
     Method of undetermined coefficients is used to compute the weights.
@@ -111,8 +105,8 @@ def gll_nodes_weights(n):
     nodes[[0,-1]] = -1, 1
     nodes[1:-1] = legendre(n-1).deriv().roots
 
-    weights = undetermined_coeffs(nodes) 
-    
+    weights = undetermined_coeffs(nodes)
+
     return nodes, weights
 
 

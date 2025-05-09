@@ -1,9 +1,3 @@
-"""
-This file contains routines necessary for constructing a full discretization.
-Specifically, this combines all other files into a single class so that the
-mesh, operators, basis, etc., are all easily accessible.
-"""
-
 import numpy as np
 import numpy.linalg as la
 

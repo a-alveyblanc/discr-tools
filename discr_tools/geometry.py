@@ -1,9 +1,3 @@
-"""
-Contains routines useful for making sense of reference vs physical space, i.e.
-mapping coordinates from reference to physical space and computing the Jacobian
-of the inverse mapping.
-"""
-
 import numpy as np
 import numpy.linalg as la
 

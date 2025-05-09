@@ -1,8 +1,3 @@
-"""
-This file contains routines to generate uniform rectangular meshes. Depends on
-meshmode to construct the mesh and picks off the (minimum) necessary info.
-"""
-
 from meshmode.mesh import TensorProductElementGroup
 from meshmode.mesh.generation import generate_regular_rect_mesh
 
@@ -19,7 +14,7 @@ class Mesh:
 
         self._mesh = generate_regular_rect_mesh(
             (self.a,)*self.dim, (self.b,)*self.dim,
-            nelements_per_axis=(self.nelts_1d,)*self.dim, 
+            nelements_per_axis=(self.nelts_1d,)*self.dim,
             group_cls=TensorProductElementGroup
         )
 
@@ -27,21 +22,17 @@ class Mesh:
         self._vertex_idxs = self.mesh.groups[0].vertex_indices
         self._elements = self.vertices[:,self._vertex_idxs]
 
-
     @property
     def mesh(self):
         return self._mesh
-
 
     @property
     def elements(self):
         return self._elements
 
-    
     @property
     def vertices(self):
         return self._vertices
-
 
     @property
     def vertex_indices(self):

@@ -1,7 +1,3 @@
-"""
-This file contains a class to compute and provide access to reference operators
-that can be used in the solution of PDEs using tensor-product elements
-"""
 import numpy as np
 import numpy.linalg as la
 
@@ -15,16 +11,15 @@ class ReferenceOperators:
         self.basis_dx = basis_cls.basis_dx
         self.nodes = basis_cls.nodes
         self.weights = basis_cls.weights
-        
 
-    # {{{ compute operators 
 
-    def _vandermonde(self): 
+    # {{{ compute operators
+
+    def _vandermonde(self):
         return np.array([
             self.basis[i](self.nodes)
             for i in range(len(self.basis))
         ]).T
-
 
     def _vandermonde_dx(self):
        return np.array([
@@ -32,17 +27,14 @@ class ReferenceOperators:
            for i in range(len(self.basis))
        ]).T
 
-
     def _diff_operator(self):
         vdm = self.vandermonde
         vdm_p = self.vandermonde_dx
 
         return vdm_p @ la.inv(vdm)
 
-    
     def _mass_matrix(self):
         return np.diag(self.weights)
-
 
     def _stiffness_matrix(self):
         return np.einsum(
@@ -63,7 +55,6 @@ class ReferenceOperators:
         except AttributeError:
             self.__vandermonde = self._vandermonde()
             return self.__vandermonde
-        
 
     @property
     def vandermonde_dx(self):
@@ -73,7 +64,6 @@ class ReferenceOperators:
             self.__vandermonde_dx = self._vandermonde_dx()
             return self.__vandermonde_dx
 
-
     @property
     def diff_operator(self):
         try:
@@ -82,7 +72,6 @@ class ReferenceOperators:
             self.__diff_operator = self._diff_operator()
             return self.__diff_operator
 
-
     @property
     def mass_matrix(self):
         try:
@@ -90,7 +79,6 @@ class ReferenceOperators:
         except AttributeError:
             self.__mass_matrix = self._mass_matrix()
             return self.__mass_matrix
-
 
     @property
     def stiffness_matrix(self):
