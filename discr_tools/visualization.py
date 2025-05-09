@@ -1,47 +1,31 @@
 import numpy as np
 
 import matplotlib.pyplot as plt
-from matplotlib import cm, colors
 
 
-def plot_results(nodes, result, u=None, u_h=None, plot_solution=False):
-    # plotting
-    fig = plt.figure(layout='constrained')
-    fig.suptitle(r"Error on $\Omega$")
+def plot_solution(discr, u, fig_name=None):
+    """
+    Expects *u* to have shape (nelts, ndofs). Only supports 2D plots
+    """
 
-    # 2d plot of error on domain
-    ax2d = fig.add_subplot(1, 2, 1, aspect='equal')
-    ax3d = fig.add_subplot(1, 2, 2, projection='3d')
+    dim, nelts, _ = discr.mapped_elements.shape
+    npts_1d = discr.order + 1
 
-    ax2d.set_xlabel("x")
-    ax2d.set_ylabel("y")
-    ax2d.scatter(nodes[0], nodes[1], c=result)
+    x = discr.mapped_elements.reshape(dim, nelts, *(npts_1d,)*dim, order="F")
+    u = u.reshape(nelts, *(npts_1d,)*dim, order="F")
 
-    ax3d.set_xlabel("x")
-    ax3d.set_ylabel("y")
-    ax3d.scatter(nodes[0], nodes[1], result, c=result)
+    ax = plt.axes(projection='3d')
+    for ielt in range(nelts):
+        ax.plot_surface(
+            x[0, ielt],
+            x[1, ielt],
+            u[ielt],
+            vmin=np.min(u),
+            vmax=np.max(u),
+            cmap='viridis'
+        )
 
-    # colorbar
-    vmin = np.min(result)
-    vmax = np.max(result)
-    norm = colors.Normalize(vmin=vmin, vmax=vmax)
-    fig.colorbar(mappable=cm.ScalarMappable(norm=norm), location='bottom',
-                 ax=[ax2d,ax3d])
-    plt.show()
+    if fig_name is None:
+        fig_name = "solution.png"
 
-    if plot_solution and u_h is not None:
-        fig = plt.figure(layout='constrained')
-        fig.suptitle(r"Solution on $\Omega$")
-
-        ax2d = fig.add_subplot(1, 2, 1, aspect='equal')
-        ax3d = fig.add_subplot(1, 2, 2, projection='3d')
-
-        ax2d.scatter(nodes[0], nodes[1], c=u_h)
-        ax3d.scatter(nodes[0], nodes[1], u_h, c=u_h)
-        vmin = np.min(u_h)
-        vmax = np.max(u_h)
-        norm = colors.Normalize(vmin=vmin, vmax=vmax)
-        fig.colorbar(mappable=cm.ScalarMappable(norm=norm),
-                     location='bottom', ax=[ax2d,ax3d])
-
-        plt.show()
+    plt.savefig(fig_name)

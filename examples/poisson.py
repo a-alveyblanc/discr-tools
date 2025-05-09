@@ -21,8 +21,16 @@ if "PYOPENCL_CTX" not in os.environ:
     os.environ["PYOPENCL_CTX"] = "1"
 
 
-def main(nelts_1d, order, dim,
-         direct_solve=None, cg_solve=None, use_gpu=None):
+def main(
+        nelts_1d,
+        order,
+        dim,
+        direct_solve=False,
+        cg_solve=False,
+        use_gpu=False,
+        visualize=False,
+    ):
+
     if not cg_solve and not direct_solve:
         cg_solve = True
 
@@ -84,6 +92,10 @@ def main(nelts_1d, order, dim,
               f" assembly took {assembly_time:.3f}s")
         print(f"        {(ndofs / direct_time):.3f} DOFs/s")
 
+        if visualize:
+            from discr_tools.visualization import plot_solution
+            plot_solution(discr, u_l, fig_name="direct.png")
+
     # CG
     if cg_solve:
         f = det_j * rhs(discr.mapped_elements) * wts
@@ -110,6 +122,10 @@ def main(nelts_1d, order, dim,
         print(f"CG    : {it_rel_l2_err:.3e}, solve took {it_time:.3f} s")
         print(f"        {(ndofs / it_time):.3f} DOFs/s")
 
+        if visualize:
+            from discr_tools.visualization import plot_solution
+            plot_solution(discr, u_l_matfree, fig_name="cg.png")
+
 
 if __name__ == "__main__":
     import argparse
@@ -125,6 +141,7 @@ if __name__ == "__main__":
     parser.add_argument("--direct_solve", action="store_true")
     parser.add_argument("--use_cg", action="store_true")
     parser.add_argument("--use_gpu", action="store_true")
+    parser.add_argument("--visualize", action="store_true")
 
     args = parser.parse_args()
 
@@ -134,5 +151,6 @@ if __name__ == "__main__":
         dim=args.dim,
         direct_solve=args.direct_solve,
         cg_solve=args.use_cg,
-        use_gpu=args.use_gpu
+        use_gpu=args.use_gpu,
+        visualize=args.visualize
     )
