@@ -105,7 +105,7 @@ def main(
             ctx = cl.create_some_context()
             queue = cl.CommandQueue(ctx)
 
-            matvec = mv.PoissonMatvec(queue, discr)
+            matvec = mv.PoissonMatvec(discr, queue=queue)
         else:
             matvec = mv.PoissonMatvec(discr)
 
