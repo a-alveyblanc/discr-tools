@@ -97,7 +97,6 @@ def poisson_kernel(discr):
     )
 
     knl = lp.fix_parameters(knl, np=npts_1d, ne=nelts)
-    knl = lp.prioritize_loops(knl, "e,i,j,k,l")
 
     knl = lp.tag_inames(
         knl,
@@ -126,5 +125,34 @@ def poisson_kernel(discr):
     )
 
     knl = lp.set_instruction_priority(knl, "id:d_fetch", 5)
+
+    return knl
+
+
+def generic_tensor_contraction(knl, dim, axis):
+    operator_spec = "ij"
+    data_spec = f"e{"mno"[:axis]}j{"pqr"[:dim-axis-1]}"
+    out_spec = f"e{"mno"[:axis]}i{"pqr"[:dim-axis-1]}"
+
+    spec = operator_spec + "," + data_spec + "->" + out_spec
+
+    knl = lp.make_einsum(
+        spec=spec,
+        arg_names=("d", "u")
+    )
+
+    local_inames = set(data_spec) - {"e", "j"}
+    tagged_inames = {iname : f"l.{i}" for i, iname in enumerate(local_inames)}
+    tagged_inames |= {"e" : "g.0"}
+
+    knl = lp.tag_inames(knl, tagged_inames)
+
+    knl = lp.add_prefetch(
+        knl,
+        "d[:,:]",
+        temporary_address_space=lp.AddressSpace.LOCAL,
+        temporary_name="d_s",
+        default_tag="l.auto"
+    )
 
     return knl

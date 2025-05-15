@@ -18,6 +18,8 @@ class Discretization:
         self.dim = dim
         self.order = order
         self.nelts = nelts_1d**dim
+        self.nelts_1d = nelts_1d
+        self.interval = [a, b]
 
         self._basis_cls = basis_cls(order)
         self._operators = ReferenceOperators(self._basis_cls)

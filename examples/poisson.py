@@ -1,13 +1,9 @@
 import discr_tools.geometry as geo
-import discr_tools.kernels as knl
 import discr_tools.matvecs as mv
 from discr_tools.assembly import assemble
 from discr_tools.discretization import Discretization
 
 import numpy as np
-import numpy.linalg as la
-
-import os
 
 import pyopencl as cl
 
@@ -16,9 +12,7 @@ import sympy as sp
 
 import time
 
-
-if "PYOPENCL_CTX" not in os.environ:
-    os.environ["PYOPENCL_CTX"] = "1"
+from discr_tools.nodal import EquispacedNodalBasis
 
 
 def main(
@@ -123,8 +117,8 @@ def main(
         print(f"        {(ndofs / it_time):.3f} DOFs/s")
 
         if visualize:
-            from discr_tools.visualization import plot_solution
-            plot_solution(discr, u_l_matfree, fig_name="cg.png")
+            from discr_tools.visualization import plot_contourf
+            plot_contourf(u_l_matfree, discr)
 
 
 if __name__ == "__main__":

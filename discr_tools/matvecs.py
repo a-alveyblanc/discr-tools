@@ -1,3 +1,6 @@
+from abc import ABC, abstractmethod
+
+from typing import Callable
 import discr_tools.geometry as geo
 import discr_tools.kernels as knls
 
@@ -6,7 +9,7 @@ import numpy as np
 import pyopencl.array as cla
 
 
-class MatvecBase:
+class MatvecBase(ABC):
     def __init__(self, discr, queue=None):
         if queue is None:
             self._use_gpu_matvec = False
@@ -16,26 +19,38 @@ class MatvecBase:
 
         self.discr = discr
 
-    def _gpu_matvec(self):
+    @abstractmethod
+    def cpu_matvec(self) -> Callable:
         pass
 
-    def _cpu_matvec(self):
+    @abstractmethod
+    def gpu_matvec(self) -> Callable:
         pass
 
-    def _matvec(self):
+    @property
+    def _matvec(self) -> Callable:
         if self._use_gpu_matvec:
-            return self._gpu_matvec()
-        return self._cpu_matvec()
+            try:
+                return self._gpu_matvec
+            except AttributeError:
+                self._gpu_matvec = self.gpu_matvec()
+                return self._gpu_matvec
+
+        try:
+            return self._cpu_matvec
+        except AttributeError:
+            self._cpu_matvec = self.cpu_matvec()
+            return self._cpu_matvec
 
     def __call__(self, u):
-        return self._matvec()(u)
+        return self._matvec(u)
 
 
 class PoissonMatvec(MatvecBase):
-    def _cpu_matvec(self):
+    def cpu_matvec(self):
         return poisson_matvec(self.discr)
 
-    def _gpu_matvec(self):
+    def gpu_matvec(self):
         knl = knls.poisson_kernel(self.discr)
 
         dim, nelts, npts = self.discr.mapped_elements.shape
