@@ -1,9 +1,6 @@
 import loopy as lp
-from loopy.version import LOOPY_USE_LANGUAGE_VERSION_2018_2
 
 import numpy as np
-
-import pyopencl.array as cl_array
 
 
 def poisson_kernel(discr):
