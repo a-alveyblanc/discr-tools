@@ -43,7 +43,13 @@ class MatvecBase(ABC):
             return self._cpu_matvec
 
     def __call__(self, u):
-        return self._matvec(u)
+        return self.discr.scatter(
+            self.discr.apply_mask(
+                self._matvec(
+                    self.discr.gather(u)
+                )
+            )
+        )
 
 
 class PoissonMatvec(MatvecBase):
@@ -94,7 +100,7 @@ class PoissonMatvec(MatvecBase):
         lap_u_d = lap_u_d.reshape(*folded_shape, order="F")
 
         def matvec(u):
-            u_d = cla.to_device(self._queue, self.discr.gather(u))
+            u_d = cla.to_device(self._queue, u)
             u_d = u_d.reshape(*folded_shape, order="F")
 
             try:
@@ -112,7 +118,7 @@ class PoissonMatvec(MatvecBase):
             )
 
             lap_u = out[0].reshape(*unfolded_shape, order="F")
-            return self.discr.scatter(self.discr.apply_mask(lap_u.get()))
+            return lap_u.get()
 
         return matvec
 
@@ -139,7 +145,7 @@ def poisson_matvec(discr):
     g = np.einsum(spec, inv_j_t_tp, inv_j_t_tp, det_j_tp, *(wts,)*dim)
 
     def matvec(u):
-        u_g = discr.gather(u).reshape(nelts, *(npts_1d,)*dim, order="F")
+        u_g = u.reshape(nelts, *(npts_1d,)*dim, order="F")
 
         d = discr.operators.diff_operator
 
@@ -153,7 +159,7 @@ def poisson_matvec(discr):
             uxx = np.einsum("li,elj->eij", d, ux)
             uyy = np.einsum("lj,eil->eij", d, uy)
 
-            lap_u = (uxx + uyy).reshape(nelts, npts, order="F")
+            return (uxx + uyy).reshape(nelts, npts, order="F")
 
         elif dim == 3:
             ur = np.einsum("il,eljk->eijk", d, u_g)
@@ -168,11 +174,9 @@ def poisson_matvec(discr):
             uyy = np.einsum("lj,eilk->eijk", d, uy)
             uzz = np.einsum("lk,eijl->eijk", d, uz)
 
-            lap_u = (uxx + uyy + uzz).reshape(nelts, npts, order="F")
+            return (uxx + uyy + uzz).reshape(nelts, npts, order="F")
 
         else:
             raise ValueError("Only supported for dim = 2, 3")
-
-        return discr.scatter(discr.apply_mask(lap_u))
 
     return matvec
